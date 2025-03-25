@@ -162,16 +162,3 @@ python main.py
 <sub>✨ 用代码改变世界，用技术创造未来 ✨</sub>
 
 </div>
-
-<style>
-  @keyframes gradientBG {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-  body {
-    background: linear-gradient(-45deg, #f8f9fa, #ffffff);
-    background-size: 400% 400%;
-    animation: gradientBG 12s ease infinite;
-  }
-</style>
