@@ -20,7 +20,7 @@
 
 <div align="center">
   
-✨ [![Saeran Chang](https://img.shields.io/badge/Author-@Saeran_Chang-FF6B6B?logo=github&style=flat-square)](https://github.com/saeran-chang) 匠心打造 | 💡 欢迎提交 [![Issues](https://img.shields.io/badge/-Issue-2ECC71?logo=git&style=flat-square)](issues) & [![PR](https://img.shields.io/badge/-PR-3498DB?logo=git&style=flat-square)](pulls) ✨
+✨ [![Saeran Chang](https://img.shields.io/badge/Author-@Saeran_Chang-FF6B6B?logo=github&style=flat-square)](https://github.com/saeran-chang) 匠心打造 | 💡 欢迎提交 [![Issues](https://img.shields.io/badge/-Issue-2ECC71?logo=git&style=flat-square)](https://github.com/Saeran-Chang/auto-exam-generator/issues) & [![PR](https://img.shields.io/badge/-PR-3498DB?logo=git&style=flat-square)](https://github.com/Saeran-Chang/auto-exam-generator/pulls) ✨
 
 </div>
 
