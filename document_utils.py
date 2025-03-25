@@ -1,4 +1,3 @@
-# document_utils.py
 import re
 from docx import Document
 from docx.shared import Pt
@@ -80,38 +79,25 @@ def add_knowledge_summary_section(doc, summary_text):
     并跳过包含答案信息的行（例如以“答案：”开头的行），
     自动根据文本内容设置对应的标题、编号列表或项目符号列表，确保输出为适合 docx 排版的纯文本格式。
     """
-    # 添加知识点总结总标题
     doc.add_heading("知识点总结", level=1)
-    # 将文本按行拆分
     lines = summary_text.splitlines()
-    
     for line in lines:
-        # 去除首尾空白
         line = line.strip()
-        # 跳过空行或仅由分割符（例如 ---）构成的行
         if not line or re.match(r'^[-_]{3,}$', line):
             continue
-
-        # 先移除 Markdown 特殊符号用于判断
         temp_line = re.sub(r'[#*]', '', line).strip()
-        # 如果该行经过清理后以“答案：”开头，则跳过
         if temp_line.startswith("答案："):
             continue
-
-        # 检查是否为 Markdown 标题（如 ### 标记）
         heading_match = re.match(r'^(#{1,6})\s*(.*)', line)
         if heading_match:
             hashes, content = heading_match.groups()
-            # 去除内容中的加粗或斜体符号
             content = re.sub(r'\*\*(.*?)\*\*', r'\1', content)
             content = re.sub(r'\*(.*?)\*', r'\1', content)
             if content.strip().startswith("答案："):
                 continue
-            level = min(len(hashes), 4)  # 限制标题级别不超过 4 级
+            level = min(len(hashes), 4)
             doc.add_heading(content.strip(), level=level)
             continue
-
-        # 检查是否为数字编号列表（例如 "1. ..."）
         if re.match(r'^\d+\.\s+', line):
             content = re.sub(r'\*\*(.*?)\*\*', r'\1', line)
             content = re.sub(r'\*(.*?)\*', r'\1', content)
@@ -119,8 +105,6 @@ def add_knowledge_summary_section(doc, summary_text):
                 continue
             doc.add_paragraph(content.strip(), style='List Number')
             continue
-
-        # 检查是否为无序列表（例如 "- ..."、"+ ..." 或 "* ..."）
         if re.match(r'^[-+*]\s+', line):
             content = re.sub(r'^[-+*]\s+', '', line)
             content = re.sub(r'\*\*(.*?)\*\*', r'\1', content)
@@ -129,8 +113,6 @@ def add_knowledge_summary_section(doc, summary_text):
                 continue
             doc.add_paragraph(content.strip(), style='List Bullet')
             continue
-
-        # 其他情况，直接去除加粗、斜体符号后写为普通段落
         content = re.sub(r'\*\*(.*?)\*\*', r'\1', line)
         content = re.sub(r'\*(.*?)\*', r'\1', content)
         if content.strip().startswith("答案："):
@@ -141,7 +123,7 @@ def add_knowledge_summary_section_template(doc, summary_text):
     """
     将固定模板格式的知识点总结解析后添加到 docx 中。
     模板格式要求：每个知识点块之间以 '====' 分隔，每个块内字段为：
-    【知识点名称】、【原理】、【实际应用】、【优点】、【缺点】、【注意事项】
+    【知识点名称】、【原理】、【实际应用】、【注意事项】
     """
     doc.add_heading("知识点总结", level=1)
     blocks = summary_text.split("====")
@@ -149,27 +131,25 @@ def add_knowledge_summary_section_template(doc, summary_text):
         block = block.strip()
         if not block:
             continue
-        # 将每个块按行拆分，并解析每行的字段
         lines = block.splitlines()
-        knowledge_point = {}
+        kp_info = {}
         current_field = None
         for line in lines:
             line = line.strip()
             field_match = re.match(r'【(.+?)】：(.*)', line)
             if field_match:
                 field, content = field_match.groups()
-                knowledge_point[field.strip()] = content.strip()
+                kp_info[field.strip()] = content.strip()
                 current_field = field.strip()
             else:
                 if current_field:
-                    knowledge_point[current_field] += " " + line
-        # 添加到文档中：知识点名称作为二级标题，其余作为段落
-        if "知识点名称" in knowledge_point:
-            doc.add_heading(knowledge_point["知识点名称"], level=2)
-        for key in ["原理", "实际应用", "优点", "缺点", "注意事项"]:
-            if key in knowledge_point and knowledge_point[key]:
+                    kp_info[current_field] += " " + line
+        if "知识点名称" in kp_info:
+            doc.add_heading(f"知识点：{kp_info['知识点名称']}", level=2)
+        for key in ["原理", "实际应用", "注意事项"]:
+            if key in kp_info and kp_info[key]:
                 para = doc.add_paragraph()
                 run = para.add_run(f"{key}：")
                 run.bold = True
-                para.add_run(knowledge_point[key])
-        doc.add_paragraph("")  # 空行分隔
+                para.add_run(kp_info[key])
+        doc.add_paragraph("")

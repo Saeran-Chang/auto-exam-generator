@@ -1,4 +1,3 @@
-# exam_generator.py
 import json, re, time
 from datetime import datetime
 from tqdm import tqdm
@@ -40,14 +39,13 @@ class EnhancedInterviewGenerator:
             "判断题": "答案只能是'正确'或'错误'",
             "问答题": "问题必须是不含任何选项的开放式技术问题，答案为简明扼要的文字描述"
         }
-        # 定义示例文本，注意问答题的示例避免包含多余引号或选项
+        # 定义示例文本
         question_examples = {
             "单选题": '"问题内容（示例：\'Java中的final关键字作用？\\nA. 继承\\nB. 重写\\nC. 常量\\nD. 多态\'）"',
             "多选题": '"问题内容（示例：\'哪些是Java集合接口？\\nA. List\\nB. Set\\nC. Map\\nD. Array\'）"',
             "问答题": '问题内容（示例："请详细解释C#中垃圾回收机制及其优化方法"）'
         }
         
-        # 针对问答题，单独构造 prompt，确保题目不包含选项，并严格返回 JSON 格式
         if question_type == "问答题":
             prompt = f"""请生成{num}道{self.tech_direction}高级开发工程师面试{question_type}，
                 要求：
@@ -91,7 +89,6 @@ class EnhancedInterviewGenerator:
         result = self.deepseek_client.call(prompt)
         if not result:
             return []
-        # 清理可能存在的代码块标记
         result = re.sub(r'```json|```', '', result).strip()
         try:
             data = json.loads(result)
@@ -129,7 +126,6 @@ class EnhancedInterviewGenerator:
                     else:
                         valid_questions.append(q)
             else:
-                # 填空题、判断题等直接返回
                 valid_questions = questions
             return valid_questions
         except Exception as e:
@@ -156,44 +152,56 @@ class EnhancedInterviewGenerator:
     
     def _add_knowledge_points_summary(self):
         """
-        根据所有生成的题目（包括判断题），调用 API 生成一份涉及主要知识点的总结，
-        现修改为生成更详细的知识点总结，每个知识点包括详细的原理、实际应用、优缺点及注意事项，
-        以便于深入学习。输出要求为适合 docx 排版的纯文本格式（不使用 Markdown 语法），
-        并确保所有试题的知识点均被覆盖。
+        根据所有生成的题目（包括判断题），调用 API 分批生成一份非常详细的知识点总结，
+        要求对每一道题分别说明其涉及的知识点，详细说明包括：
+           1. 详细原理和运行机制（要求内容非常详细）
+           2. 实际应用场景及具体示例
+           3. 使用时的注意事项和防范措施
+        每一道题的说明请按照如下模板输出，并在每道题后输出“====”作为分隔符：
+           【知识点名称】：
+           【原理】：
+           【实际应用】：
+           【注意事项】：
+        如果所有题目字数过长，请分批生成，确保每道题都有详细的总结。
         """
         import re
-        # 遍历所有题型，将所有题目拼接起来，确保覆盖所有试题
+        # 汇总所有题目
         all_questions = []
         for q_type, questions in self.generated_questions.items():
             all_questions.extend(questions)
         all_questions.sort(key=lambda x: x['number'])
-        questions_text = "\n".join([f"{item['number']}. {item['question']}" for item in all_questions])
-        prompt = (
-            f"请根据以下{self.tech_direction}高级开发面试题目，生成一份详细的知识点总结。\n"
-            "请按照以下模板格式生成，每个知识点块之间用 '====' 分隔，模板如下：\n"
-            "【知识点名称】：\n"
-            "【原理】：\n"
-            "【实际应用】：\n"
-            "【优点】：\n"
-            "【缺点】：\n"
-            "【注意事项】：\n"
-            "请确保所有试题的知识点均被覆盖，并输出为纯文本格式，避免使用 Markdown 语法。\n"
-            "题目如下：\n"
-            f"{questions_text}"
-        )
+        total_questions = len(all_questions)
+        batch_size = 10  # 每批处理10道题，可根据需要调整
+        responses = []
+        print("开始分批生成详细知识点总结，请耐心等待...")
         knowledge_start = time.time()
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(self.deepseek_client.call, prompt)
-            print("生成详细知识点总结中，请稍候...")
-            knowledge_points = future.result()
+        for i in range(0, total_questions, batch_size):
+            batch = all_questions[i:i+batch_size]
+            questions_text = "\n".join([f"{item['number']}. {item['question']}" for item in batch])
+            prompt = (
+                f"请对以下{self.tech_direction}高级开发面试题目中的每一道题分别说明其涉及的知识点，要求：\n"
+                "1. 每一道题的说明应包括：详细原理和运行机制（要求内容非常详细）、实际应用场景及具体示例、使用时的注意事项和防范措施。\n"
+                "2. 请对每一道题单独输出说明，并按照如下模板输出，每一道题的说明后请单独输出一行‘====’作为分隔符：\n"
+                "【知识点名称】：\n"
+                "【原理】：\n"
+                "【实际应用】：\n"
+                "【注意事项】：\n"
+                "请确保所有题目的知识点均被覆盖，并输出为纯文本格式，避免使用 Markdown 语法。\n"
+                "题目如下：\n"
+                f"{questions_text}"
+            )
+            batch_response = self.deepseek_client.call(prompt)
+            if batch_response:
+                batch_response = re.sub(r'```.+?```', '', batch_response).strip()
+                responses.append(batch_response)
+            else:
+                print("某批次知识点总结生成失败")
         knowledge_end = time.time()
-        print(f"详细知识点总结生成完成，耗时 {knowledge_end - knowledge_start:.2f} 秒")
-        if knowledge_points:
-            knowledge_points = re.sub(r'```.+?```', '', knowledge_points).strip()
-            return knowledge_points
-        else:
-            print("生成详细知识点总结失败")
-            return None
+        elapsed = knowledge_end - knowledge_start
+        minutes = int(elapsed // 60)
+        seconds = elapsed % 60
+        print(f"详细知识点总结生成完成，耗时 {minutes}分钟{seconds:.2f}秒")
+        return "\n".join(responses)
     
     def generate_exam_paper(self, question_types):
         overall_start = time.time()
@@ -246,7 +254,7 @@ class EnhancedInterviewGenerator:
                 print(f"警告：{q_type}最终未生成足够题目，期望{total}题，实际获得{len(generated)}题")
             self.generated_questions[q_type] = generated
         
-        # 所有题目生成完成后，根据题目生成知识点总结，并插入到考生信息之后
+        # 根据题目生成知识点总结，并插入到考生信息之后
         knowledge_points = self._add_knowledge_points_summary()
         if knowledge_points:
             add_knowledge_summary_section_template(self.doc, knowledge_points)
@@ -259,8 +267,11 @@ class EnhancedInterviewGenerator:
         self._write_question_sections(self.generated_questions)
         
         overall_end = time.time()
+        total_elapsed = overall_end - overall_start
+        minutes = int(total_elapsed // 60)
+        seconds = total_elapsed % 60
         add_answer_section(self.doc, self.answer_sheet)
         filename = self._get_filename()
         self.doc.save(filename)
         print(f"生成成功！文件已保存为 {filename}, 共{self.question_count}题")
-        print(f"总耗时: {overall_end - overall_start:.2f}秒")
+        print(f"总耗时: {minutes}分钟{seconds:.2f}秒")
